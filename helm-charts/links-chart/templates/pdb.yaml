@@ -1,0 +1,20 @@
+# Pod 中断预算：滚动更新/节点维护时保证最少可用副本
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: links-app-pdb
+  namespace: {{ .Values.namespace }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app: links-app }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: links-nginx-pdb
+  namespace: {{ .Values.namespace }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app: links-nginx }

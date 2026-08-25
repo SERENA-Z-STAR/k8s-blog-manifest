@@ -1,0 +1,20 @@
+# ingress-nginx 单节点省资源配置
+controller:
+  replicaCount: 1
+  service:
+    type: NodePort
+    nodePorts:
+      http: 32080
+      https: 32443
+  hostPort:
+    enabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  # 单节点不需要默认后端
+  admissionWebhooks:
+    enabled: false

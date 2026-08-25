@@ -1,0 +1,25 @@
+# 对外入口：域名访问（本地 hosts 解析 share.k8s.local -> 节点IP）
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: links-ingress
+  namespace: {{ .Values.namespace }}
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 10m
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - {{ .Values.domain }}
+      secretName: links-tls
+  rules:
+    - host: {{ .Values.domain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: links-nginx
+                port:
+                  number: 80

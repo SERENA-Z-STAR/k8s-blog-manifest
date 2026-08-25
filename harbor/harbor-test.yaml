@@ -1,0 +1,11 @@
+# 测试 Pod：从私有 Harbor 拉取镜像
+apiVersion: v1
+kind: Pod
+metadata:
+  name: harbor-test
+spec:
+  containers:
+    - name: nginx
+      image: harbor.k8s.local:30443/blog-project/nginx:v1
+  imagePullSecrets:
+    - name: harbor-secret

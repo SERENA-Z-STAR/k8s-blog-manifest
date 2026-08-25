@@ -1,0 +1,60 @@
+# MySQL 有状态服务：LocalPV 持久化 + init 脚本建用户
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: links-mysql
+  namespace: {{ .Values.namespace }}
+spec:
+  serviceName: links-mysql
+  replicas: 1
+  selector:
+    matchLabels: { app: links-mysql }
+  template:
+    metadata:
+      labels: { app: links-mysql }
+    spec:
+      containers:
+        - name: mysql
+          image: {{ .Values.images.mysql }}
+          ports:
+            - { containerPort: 3306, name: mysql }
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: links-secret, key: MYSQL_ROOT_PASSWORD }
+            - name: MYSQL_DATABASE
+              value: {{ .Values.mysql.database | quote }}
+            - name: MYSQL_ROOT_HOST
+              value: "%"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: links-secret, key: DB_PASSWORD }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/mysql }
+            - { name: init, mountPath: /docker-entrypoint-initdb.d }
+          resources:
+            requests: {{ toYaml .Values.mysql.resources.requests | nindent 14 }}
+            limits: {{ toYaml .Values.mysql.resources.limits | nindent 14 }}
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "mysqladmin ping -h 127.0.0.1 -uroot -p$MYSQL_ROOT_PASSWORD"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "mysqladmin ping -h 127.0.0.1 -uroot -p$MYSQL_ROOT_PASSWORD"]
+            initialDelaySeconds: 30
+            periodSeconds: 15
+      volumes:
+        - name: init
+          configMap:
+            name: links-mysql-init
+            defaultMode: 0755
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        storageClassName: local-path
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: {{ .Values.mysql.storage }}

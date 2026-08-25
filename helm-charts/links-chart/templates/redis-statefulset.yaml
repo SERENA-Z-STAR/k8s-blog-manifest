@@ -1,0 +1,44 @@
+# Redis 有状态服务：LocalPV 持久化 + AOF 落盘
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: links-redis
+  namespace: {{ .Values.namespace }}
+spec:
+  serviceName: links-redis
+  replicas: 1
+  selector:
+    matchLabels: { app: links-redis }
+  template:
+    metadata:
+      labels: { app: links-redis }
+    spec:
+      containers:
+        - name: redis
+          image: {{ .Values.images.redis }}
+          command: ["redis-server", "--appendonly", "yes"]
+          ports:
+            - { containerPort: 6379, name: redis }
+          volumeMounts:
+            - { name: data, mountPath: /data }
+          resources:
+            requests: {{ toYaml .Values.redis.resources.requests | nindent 14 }}
+            limits: {{ toYaml .Values.redis.resources.limits | nindent 14 }}
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        storageClassName: local-path
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: {{ .Values.redis.storage }}

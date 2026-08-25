@@ -1,0 +1,123 @@
+# Harbor values - 单节点环境（harbor 2.15.2 / chart 1.19.2）
+expose:
+  type: nodePort
+  tls:
+    enabled: true
+    certSource: secret
+    secret:
+      secretName: "harbor-tls"
+  nodePort:
+    name: harbor
+    ports:
+      http:
+        port: 80
+        nodePort: 30080
+      https:
+        port: 443
+        nodePort: 30443
+
+externalURL: https://harbor.k8s.local:30443
+
+harborAdminPassword: "Harbor12345"
+
+# 让门户提供 CA 证书下载链接（配合我们自签的 CA）
+caSecretName: "harbor-ca"
+
+# nodePort 部署必须开启，否则 docker push 时 307 重定向到内部服务名导致失败
+registry:
+  relativeurls: true
+
+persistence:
+  resourcePolicy: "keep"
+  persistentVolumeClaim:
+    registry:
+      storageClass: local-path
+      accessMode: ReadWriteOnce
+      size: 20Gi
+    jobservice:
+      jobLog:
+        storageClass: local-path
+        accessMode: ReadWriteOnce
+        size: 2Gi
+    database:
+      storageClass: local-path
+      accessMode: ReadWriteOnce
+      size: 5Gi
+    redis:
+      storageClass: local-path
+      accessMode: ReadWriteOnce
+      size: 2Gi
+
+database:
+  internal:
+    password: "harbor_db_pass"
+    resources:
+      requests:
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+
+redis:
+  internal:
+    resources:
+      requests:
+        memory: 128Mi
+      limits:
+        memory: 256Mi
+
+# 关闭 trivy：需要访问 GitHub 下漏洞库，国内网络必挂，且吃资源
+trivy:
+  enabled: false
+
+metrics:
+  enabled: false
+
+nginx:
+  resources:
+    requests:
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
+portal:
+  resources:
+    requests:
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
+core:
+  resources:
+    requests:
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+jobservice:
+  resources:
+    requests:
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+registry:
+  registry:
+    resources:
+      requests:
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+  controller:
+    resources:
+      requests:
+        memory: 64Mi
+      limits:
+        memory: 128Mi
+
+exporter:
+  replicas: 0   # 关闭 exporter，监控阶段再启用
+  resources:
+    requests:
+      memory: 64Mi
+    limits:
+      memory: 256Mi

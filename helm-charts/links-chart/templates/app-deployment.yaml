@@ -1,0 +1,48 @@
+# Node.js 应用（无状态，HPA 扩缩容目标）
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: links-app
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.app.replicas }}
+  selector:
+    matchLabels: { app: links-app }
+  template:
+    metadata:
+      labels: { app: links-app }
+    spec:
+      imagePullSecrets:
+        - name: links-registry-secret
+      containers:
+        - name: app
+          image: {{ .Values.images.app }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { containerPort: 3000, name: http }
+          envFrom:
+            - configMapRef: { name: links-app-config }
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: links-secret, key: DB_PASSWORD }
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: links-secret, key: MYSQL_ROOT_PASSWORD }
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef: { name: links-secret, key: SESSION_SECRET }
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: links-secret, key: ADMIN_PASSWORD }
+          resources:
+            requests: {{ toYaml .Values.app.resources.requests | nindent 14 }}
+            limits: {{ toYaml .Values.app.resources.limits | nindent 14 }}
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 30
+            periodSeconds: 15

@@ -1,0 +1,52 @@
+# Links 分享站 Chart 配置
+namespace: links-ns
+domain: share.k8s.local          # 访问域名（改这里 + hosts 即可换域名）
+
+images:
+  app: harbor.k8s.local:30443/blog-project/links-app:v1
+  nginx: harbor.k8s.local:30443/blog-project/links-nginx:v1
+  mysql: mysql:8.0.36
+  redis: redis:7.2.4-alpine
+
+# Harbor 私有仓库拉取凭据
+harbor:
+  registry: harbor.k8s.local:30443
+  username: admin
+  password: "Harbor12345"
+
+# ⚠️ 演示环境默认值，生产环境必须改用外部密钥管理（Vault/KMS），勿提交真实密钥到 git
+secrets:
+  mysqlRootPassword: "9c3fe0b93ec254dc8bd6f8f46fc8523f"
+  dbPassword: "ef5c6f2f2a4f469c9ea1fe777efc4ae7"
+  sessionSecret: "570c4a6534b57c24c2ec33dd028ff533a52b8b4e583a351fa85b453714574929"
+  adminUser: "admin"
+  adminPassword: "8fb4019b019dbb4a1619b925"
+
+mysql:
+  database: links_db
+  storage: 5Gi
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 1Gi }
+
+redis:
+  storage: 1Gi
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+
+app:
+  replicas: 1
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+  hpa:
+    minReplicas: 1
+    maxReplicas: 5
+    cpuUtilization: 60
+
+nginx:
+  replicas: 1
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 128Mi }
