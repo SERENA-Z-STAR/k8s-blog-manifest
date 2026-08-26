@@ -1,0 +1,79 @@
+# Jenkins on K8s - 单节点省资源配置
+controller:
+  # 资源配额（Jenkins 主进程 + 插件管理）
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+
+  # 对外访问：NodePort 32000
+  serviceType: NodePort
+  servicePort: 8080
+  nodePort: 32000
+
+  # 国内插件下载加速（清华镜像）
+  pluginUpdateCenter: https://mirrors.tuna.tsinghua.edu.cn/jenkins/updates/update-center.json
+
+  # 管理员（密码由 chart 自动生成，安装后从 secret 获取）
+  admin:
+    username: admin
+
+  # 保持默认插件：kubernetes(动态agent) / workflow-aggregator(Pipeline) / git / configuration-as-code
+
+  # JCasC：配置即代码（凭据等）
+  JCasC:
+    configScripts:
+      credentials: |
+        credentials:
+          system:
+            domainCredentials:
+              - credentials:
+                  - usernamePassword:
+                      scope: GLOBAL
+                      id: harbor
+                      username: admin
+                      password: "Harbor12345"
+                      description: "Harbor 私有仓库"
+
+# 持久化：local-path 存储
+persistence:
+  enabled: true
+  storageClass: local-path
+  size: 5Gi
+
+# 动态 Agent（chart 原生配置，默认 cloud）
+agent:
+  namespace: jenkins
+  # agent 镜像（私有 Harbor）
+  image:
+    registry: harbor.k8s.local:30443/blog-project
+    repository: jenkins-agent
+    tag: "1.0"
+  imagePullSecretName: harbor-registry-secret
+  # 以 root 运行（访问宿主 docker.sock 构建镜像；学习环境，生产应使用专用构建账号）
+  runAsUser: 0
+  runAsGroup: 0
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+    limits:
+      cpu: "1"
+      memory: "768Mi"
+  # 挂载宿主 docker.sock（构建镜像）+ kubeconfig（操作集群）
+  volumes:
+    - type: HostPath
+      hostPath: /var/run/docker.sock
+      mountPath: /var/run/docker.sock
+    - type: Secret
+      secretName: kubeconfig
+      mountPath: /home/jenkins/.kube
+  customJenkinsLabels:
+    - jenkins-agent
+
+# 禁用系统信息收集
+prometheus:
+  enabled: false
