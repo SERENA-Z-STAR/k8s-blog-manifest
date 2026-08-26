@@ -67,7 +67,7 @@
           [5] 系统资源
           CPU 核数: {{ ansible_processor_vcpus }}
           内存: {{ ansible_memtotal_mb }} MB
-          磁盘根分区: {{ ansible_mounts | selectattr('mount','equalto','/') | map(attribute='size_total') | first | default(0) | int / 1024 / 1024 | round(1) }} GB
+          磁盘根分区: {{ ansible_mounts | selectattr('mount','equalto','/') | map(attribute='size_total') | first | default(0) | int / 1024 / 1024 / 1024 | round(1) }} GB
 
           ============================================
           巡检完成，如发现异常请参考 docs/运维SOP.md
