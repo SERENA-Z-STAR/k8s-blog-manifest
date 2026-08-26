@@ -3,8 +3,8 @@ namespace: links-ns
 domain: share.k8s.local          # 访问域名（改这里 + hosts 即可换域名）
 
 images:
-  app: harbor.k8s.local:30443/blog-project/links-app:v1
-  nginx: harbor.k8s.local:30443/blog-project/links-nginx:v1
+  app: harbor.k8s.local:30443/blog-project/links-app:v6
+  nginx: harbor.k8s.local:30443/blog-project/links-nginx:v6
   mysql: harbor.k8s.local:30443/blog-project/mysql:8.0.36
   redis: harbor.k8s.local:30443/blog-project/redis:7.2.4
 
