@@ -71,8 +71,6 @@
             if [ ! -f /etc/apt/keyrings/kubernetes.gpg ]; then
               curl -fsSL --connect-timeout 10 --max-time 30 https://mirrors.aliyun.com/kubernetes/apt/doc/apt-key.gpg | gpg --dearmor -o /etc/apt/keyrings/kubernetes.gpg
             fi
-          args:
-            warn: false
         - name: 写入源
           copy:
             dest: /etc/apt/sources.list.d/kubernetes.list

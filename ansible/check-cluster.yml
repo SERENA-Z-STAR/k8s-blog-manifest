@@ -10,22 +10,34 @@
     report_date: "{{ ansible_date_time.date }}_{{ ansible_date_time.time | replace(':','') }}"
     report_file: "/tmp/巡检报告-{{ report_date }}.txt"
   tasks:
+    - name: 设置 KUBECONFIG 环境（become root 后 HOME 变化，需显式指定 zqq 的配置）
+      set_fact:
+        kubecfg: /home/zqq/.kube/config
+
     - name: 收集节点信息（kubectl get nodes）
+      environment:
+        KUBECONFIG: "{{ kubecfg }}" 
       shell: kubectl get nodes -o wide
       register: nodes_out
 
     - name: 收集集群 Pod 状态（异常统计）
+      environment:
+        KUBECONFIG: "{{ kubecfg }}"
       shell: |
         kubectl get pods -A --no-headers | awk '$4 != "Running" && $4 != "Completed" {print}'
       register: bad_pods
       changed_when: false
 
     - name: 收集命名空间资源概况
+      environment:
+        KUBECONFIG: "{{ kubecfg }}"
       shell: kubectl get ns
       register: ns_out
       changed_when: false
 
     - name: 节点资源使用（kubectl top）
+      environment:
+        KUBECONFIG: "{{ kubecfg }}"
       shell: kubectl top nodes 2>/dev/null || echo "(metrics-server 不可用)"
       register: top_out
       changed_when: false
