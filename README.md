@@ -12,7 +12,8 @@ K8s 云原生平台项目 - 基础设施即代码仓库（业务代码见 [k8s-b
 监控：Prometheus+Grafana+Loki（阶段5）
 ```
 
-- 环境：单节点 kubeadm v1.28.2（Ubuntu 22.04，containerd 2.2.1）
+- 环境：双节点 kubeadm v1.28.2（master 7.7G + worker 3G，Ubuntu 22.04，containerd 2.2.1）
+- 镜像：全部私有化到 Harbor（不依赖外网拉取）
 - 业务：Links 信息分享站（苹果风轻博客 + 外链分享，管理员后台发布）
 
 ## 目录结构
