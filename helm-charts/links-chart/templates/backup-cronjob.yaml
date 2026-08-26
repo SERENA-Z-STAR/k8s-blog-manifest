@@ -1,0 +1,53 @@
+# MySQL 定时备份（每天 03:00 mysqldump → LocalPV，保留最近 7 份）
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: links-mysql-backup
+  namespace: {{ .Values.namespace }}
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: {{ .Values.images.mysql }}
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -e
+                  mkdir -p /backup
+                  BACKUP_FILE=/backup/links_db_$(date +%Y%m%d_%H%M).sql
+                  echo "=== 开始备份: $BACKUP_FILE ==="
+                  mysqldump -h links-mysql -uroot -p"$MYSQL_ROOT_PASSWORD" links_db > "$BACKUP_FILE"
+                  echo "=== 保留最近 7 份，清理旧备份 ==="
+                  ls -t /backup/links_db_*.sql | tail -n +8 | xargs -r rm -f
+                  echo "=== 当前备份列表 ==="
+                  ls -lh /backup/
+              env:
+                - name: MYSQL_ROOT_PASSWORD
+                  valueFrom:
+                    secretKeyRef: { name: links-secret, key: MYSQL_ROOT_PASSWORD }
+              volumeMounts:
+                - { name: backup, mountPath: /backup }
+          volumes:
+            - name: backup
+              persistentVolumeClaim:
+                claimName: links-mysql-backup-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: links-mysql-backup-pvc
+  namespace: {{ .Values.namespace }}
+spec:
+  storageClassName: local-path
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi

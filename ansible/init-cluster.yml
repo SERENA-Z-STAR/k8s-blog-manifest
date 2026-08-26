@@ -1,0 +1,98 @@
+# ============================================================
+# 集群初始化 playbook（把阶段0 的手动步骤代码化，幂等可重复执行）
+# 用法: ansible-playbook -i inventory.ini init-cluster.yml
+# ============================================================
+- name: K8s 集群前置环境初始化
+  hosts: all
+  gather_facts: yes
+  tasks:
+    - name: 关闭 swap（当前会话 + 持久化）
+      shell: |
+        swapoff -a || true
+        sed -i '/swap/d' /etc/fstab
+      changed_when: false
+
+    - name: 加载内核模块 overlay/br_netfilter
+      modprobe:
+        name: "{{ item }}"
+        state: present
+      loop: [overlay, br_netfilter]
+
+    - name: 配置内核模块开机加载
+      copy:
+        dest: /etc/modules-load.d/k8s.conf
+        content: |
+          overlay
+          br_netfilter
+
+    - name: 配置 sysctl 内核参数
+      copy:
+        dest: /etc/sysctl.d/k8s.conf
+        content: |
+          net.bridge.bridge-nf-call-iptables  = 1
+          net.bridge.bridge-nf-call-ip6tables = 1
+          net.ipv4.ip_forward                 = 1
+      notify: 应用 sysctl
+
+    - name: 安装 containerd
+      apt:
+        name: containerd
+        state: present
+        update_cache: yes
+
+    - name: 生成 containerd 默认配置（仅当不存在）
+      shell: containerd config default > /etc/containerd/config.toml
+      args:
+        creates: /etc/containerd/config.toml
+
+    - name: 配置 SystemdCgroup（cgroup v2 必须）
+      replace:
+        path: /etc/containerd/config.toml
+        regexp: 'SystemdCgroup = false'
+        replace: 'SystemdCgroup = true'
+
+    - name: 配置沙箱镜像为阿里云（containerd 2.x 键名 sandbox）
+      replace:
+        path: /etc/containerd/config.toml
+        regexp: "sandbox = 'registry.k8s.io/pause:.*'"
+        replace: "sandbox = 'registry.aliyuncs.com/google_containers/pause:3.10'"
+
+    - name: 重启 containerd
+      systemd:
+        name: containerd
+        state: restarted
+        daemon_reload: yes
+
+    - name: 添加 Kubernetes apt 源（阿里云）
+      block:
+        - name: 下载 GPG key
+          shell: |
+            mkdir -p /etc/apt/keyrings
+            curl -fsSL https://mirrors.aliyun.com/kubernetes/apt/doc/apt-key.gpg | gpg --dearmor -o /etc/apt/keyrings/kubernetes.gpg
+        - name: 写入源
+          copy:
+            dest: /etc/apt/sources.list.d/kubernetes.list
+            content: "deb [signed-by=/etc/apt/keyrings/kubernetes.gpg] https://mirrors.aliyun.com/kubernetes/apt/ kubernetes-xenial main\n"
+      when: inventory_hostname == groups['master'][0]
+
+    - name: 安装 kubeadm/kubelet/kubectl（master 节点）
+      apt:
+        name: [kubelet, kubeadm, kubectl]
+        state: present
+        update_cache: yes
+      when: inventory_hostname == groups['master'][0]
+
+    - name: 安装 kubeadm/kubelet（node 节点）
+      apt:
+        name: [kubelet, kubeadm]
+        state: present
+        update_cache: yes
+      when: inventory_hostname in (groups['nodes'] | default([]))
+
+    - name: 锁定版本防止自动升级
+      command: apt-mark hold kubelet kubeadm kubectl
+      when: inventory_hostname == groups['master'][0]
+
+  handlers:
+    - name: 应用 sysctl
+      shell: sysctl --system

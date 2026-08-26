@@ -1,0 +1,72 @@
+# ============================================================
+# 集群巡检 playbook：收集节点/集群健康状态，输出报告
+# 用法: ansible-playbook -i inventory.ini check-cluster.yml
+# 产出: /tmp/巡检报告-<日期>.txt（可配合 cron 定期执行）
+# ============================================================
+- name: K8s 集群巡检
+  hosts: master
+  gather_facts: yes
+  vars:
+    report_date: "{{ ansible_date_time.date }}_{{ ansible_date_time.time | replace(':','') }}"
+    report_file: "/tmp/巡检报告-{{ report_date }}.txt"
+  tasks:
+    - name: 收集节点信息（kubectl get nodes）
+      shell: kubectl get nodes -o wide
+      register: nodes_out
+
+    - name: 收集集群 Pod 状态（异常统计）
+      shell: |
+        kubectl get pods -A --no-headers | awk '$4 != "Running" && $4 != "Completed" {print}'
+      register: bad_pods
+      changed_when: false
+
+    - name: 收集命名空间资源概况
+      shell: kubectl get ns
+      register: ns_out
+      changed_when: false
+
+    - name: 节点资源使用（kubectl top）
+      shell: kubectl top nodes 2>/dev/null || echo "(metrics-server 不可用)"
+      register: top_out
+      changed_when: false
+
+    - name: 生成巡检报告
+      copy:
+        dest: "{{ report_file }}"
+        content: |
+          ============================================
+          K8s 集群巡检报告
+          时间: {{ ansible_date_time.date }} {{ ansible_date_time.time }}
+          主机: {{ inventory_hostname }} ({{ ansible_default_ipv4.address }})
+          ============================================
+
+          [1] 节点状态
+          {{ nodes_out.stdout }}
+
+          [2] 节点资源使用
+          {{ top_out.stdout }}
+
+          [3] 命名空间
+          {{ ns_out.stdout }}
+
+          [4] 异常 Pod（非 Running/Completed）
+          {{ bad_pods.stdout if bad_pods.stdout else '(无异常 Pod)' }}
+
+          [5] 系统资源
+          CPU 核数: {{ ansible_processor_vcpus }}
+          内存: {{ ansible_memtotal_mb }} MB
+          磁盘根分区: {{ ansible_mounts | selectattr('mount','equalto','/') | map(attribute='size_total') | first | default(0) | int / 1024 / 1024 | round(1) }} GB
+
+          ============================================
+          巡检完成，如发现异常请参考 docs/运维SOP.md
+          ============================================
+      changed_when: false
+
+    - name: 输出报告摘要
+      debug:
+        msg: "巡检完成，报告已保存: {{ report_file }}"
+
+    - name: 异常 Pod 告警（有则高亮）
+      debug:
+        msg: "⚠️ 发现异常 Pod: {{ bad_pods.stdout }}"
+      when: bad_pods.stdout
