@@ -13,6 +13,8 @@ spec:
     metadata:
       labels: { app: links-mysql }
     spec:
+      imagePullSecrets:
+        - name: links-registry-secret
       containers:
         - name: mysql
           image: {{ .Values.images.mysql }}

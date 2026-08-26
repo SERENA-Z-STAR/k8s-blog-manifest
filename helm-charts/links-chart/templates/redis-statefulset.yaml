@@ -13,6 +13,8 @@ spec:
     metadata:
       labels: { app: links-redis }
     spec:
+      imagePullSecrets:
+        - name: links-registry-secret
       containers:
         - name: redis
           image: {{ .Values.images.redis }}
