@@ -24,6 +24,8 @@ K8s 云原生平台项目 - 基础设施即代码仓库（业务代码见 [k8s-b
 ├── harbor/                # Harbor values + 证书脚本（私钥不入库）
 ├── ingress/               # ingress-nginx 配置
 ├── storage/               # local-path-provisioner manifest
+├── monitoring/            # 监控栈配置（阶段5）
+│   └── webhook-receiver/  # 告警接收端（模拟企业微信）
 └── tls/                   # share.k8s.local 证书（公钥入库，私钥不入库）
 ```
 
