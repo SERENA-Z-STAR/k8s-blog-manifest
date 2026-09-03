@@ -1,0 +1,36 @@
+# 模拟企业微信机器人的 webhook 接收端（演示用）
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webhook-receiver
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: webhook-receiver }
+  template:
+    metadata:
+      labels: { app: webhook-receiver }
+    spec:
+      containers:
+        - name: receiver
+          image: harbor.k8s.local:30443/blog-project/busybox:latest
+          command: ["sh", "-c"]
+          args:
+            - |
+              # busybox 里用 nc 模拟 webhook 接收（打印收到的请求）
+              while true; do
+                { printf 'HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n'; } | nc -l -p 8080 -q 0 -o /tmp/alerts.log || true
+              done
+          ports:
+            - { containerPort: 8080 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webhook-receiver
+  namespace: monitoring
+spec:
+  selector: { app: webhook-receiver }
+  ports:
+    - { port: 8080, targetPort: 8080 }

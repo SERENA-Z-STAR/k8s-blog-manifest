@@ -1,0 +1,7 @@
+# Promtail DaemonSet（全节点采集容器日志 → Loki 单实例）
+config:
+  clients:
+    - url: http://loki:3100/loki/api/v1/push
+resources:
+  requests: { cpu: 20m, memory: 64Mi }
+  limits: { cpu: 100m, memory: 128Mi }

@@ -41,9 +41,11 @@
         update_cache: yes
 
     - name: 生成 containerd 默认配置（仅当不存在）
-      shell: containerd config default > /etc/containerd/config.toml
-      args:
-        creates: /etc/containerd/config.toml
+      shell: |
+        mkdir -p /etc/containerd
+        if [ ! -f /etc/containerd/config.toml ]; then
+          containerd config default > /etc/containerd/config.toml
+        fi
 
     - name: 配置 SystemdCgroup（cgroup v2 必须）
       replace:
@@ -63,7 +65,7 @@
         state: restarted
         daemon_reload: yes
 
-    - name: 添加 Kubernetes apt 源（阿里云）
+    - name: 添加 Kubernetes apt 源（阿里云，所有节点）
       block:
         - name: 下载 GPG key（已存在则跳过）
           shell: |
@@ -75,7 +77,6 @@
           copy:
             dest: /etc/apt/sources.list.d/kubernetes.list
             content: "deb [signed-by=/etc/apt/keyrings/kubernetes.gpg] https://mirrors.aliyun.com/kubernetes/apt/ kubernetes-xenial main\n"
-      when: inventory_hostname == groups['master'][0]
 
     - name: 安装 kubeadm/kubelet/kubectl（master 节点）
       apt:

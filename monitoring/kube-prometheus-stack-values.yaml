@@ -1,0 +1,100 @@
+# kube-prometheus-stack - 单节点省资源配置
+# 策略：Prometheus/Grafana/Alertmanager/ksm 调度到 worker(k8s-node01)，node-exporter 全节点
+# 持久化全部用 local-path；告警 webhook 到 webhook-receiver（模拟企业微信）
+
+# Prometheus Operator（控制面）
+prometheusOperator:
+  nodeSelector:
+    kubernetes.io/hostname: k8s-node01
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 200m, memory: 256Mi }
+  admissionWebhooks:
+    enabled: false   # 省资源
+
+prometheus:
+  service:
+    type: NodePort
+    nodePort: 32002
+  prometheusSpec:
+    nodeSelector:
+      kubernetes.io/hostname: k8s-node01
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits: { cpu: 500m, memory: 1Gi }
+    retention: 7d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
+
+alertmanager:
+  enabled: true
+  service:
+    type: NodePort
+    nodePort: 32003
+  alertmanagerSpec:
+    nodeSelector:
+      kubernetes.io/hostname: k8s-node01
+    resources:
+      requests: { cpu: 50m, memory: 64Mi }
+      limits: { cpu: 200m, memory: 256Mi }
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 2Gi
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ['alertname']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: webhook
+    receivers:
+      - name: webhook
+        webhook_configs:
+          - url: http://webhook-receiver.monitoring.svc:8080/
+
+grafana:
+  enabled: true
+  service:
+    type: NodePort
+    nodePort: 32001
+  nodeSelector:
+    kubernetes.io/hostname: k8s-node01
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 200m, memory: 256Mi }
+  persistence:
+    enabled: true
+    storageClassName: local-path
+    size: 2Gi
+  adminPassword: "Grafana@2026"
+  grafana.ini:
+    auth.anonymous:
+      enabled: false
+
+kubeStateMetrics:
+  enabled: true
+  nodeSelector:
+    kubernetes.io/hostname: k8s-node01
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 200m, memory: 256Mi }
+
+# node-exporter：DaemonSet 全节点采集（master + worker）
+prometheus-node-exporter:
+  enabled: true
+  resources:
+    requests: { cpu: 20m, memory: 32Mi }
+    limits: { cpu: 100m, memory: 64Mi }
