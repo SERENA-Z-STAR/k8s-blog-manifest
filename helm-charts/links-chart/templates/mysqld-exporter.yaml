@@ -1,0 +1,97 @@
+# MySQL 监控：mysqld-exporter + ServiceMonitor + 告警规则
+# 标签 release: monitoring 是 Prometheus(kube-prometheus-stack) 的采集选择器
+---
+# exporter 的 .my.cnf（密码存 Secret，不落明文）
+apiVersion: v1
+kind: Secret
+metadata:
+  name: links-mysql-exporter-conf
+  namespace: {{ .Values.namespace }}
+type: Opaque
+data:
+  .my.cnf: |
+    {{ printf "[client]\nuser=root\npassword=%s\nhost=links-mysql\nport=3306" .Values.secrets.mysqlRootPassword | b64enc }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: links-mysqld-exporter
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: links-mysqld-exporter }
+  template:
+    metadata:
+      labels: { app: links-mysqld-exporter }
+    spec:
+      imagePullSecrets:
+        - name: links-registry-secret
+      containers:
+        - name: exporter
+          image: harbor.k8s.local:30443/blog-project/mysqld-exporter:v0.17.2
+          ports:
+            - { containerPort: 9104, name: metrics }
+          args:
+            - --config.my-cnf=/etc/mysql-exporter/.my.cnf
+            - --web.listen-address=:9104
+          volumeMounts:
+            - { name: conf, mountPath: /etc/mysql-exporter, readOnly: true }
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits: { cpu: 100m, memory: 128Mi }
+      volumes:
+        - name: conf
+          secret:
+            secretName: links-mysql-exporter-conf
+            items:
+              - { key: .my.cnf, path: .my.cnf }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: links-mysqld-exporter
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: links-mysqld-exporter
+spec:
+  selector: { app: links-mysqld-exporter }
+  ports:
+    - { port: 9104, targetPort: 9104, name: metrics }
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: links-mysqld-exporter
+  namespace: {{ .Values.namespace }}
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels: { app: links-mysqld-exporter }
+  endpoints:
+    - port: metrics
+      interval: 30s
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.namespace }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: links-mysql-alerts
+  namespace: {{ .Values.namespace }}
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: links-mysql
+      rules:
+        - alert: MySQLDown
+          expr: mysql_up == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "MySQL 服务不可用 (links-mysql)"
+            description: "MySQL 实例无法访问，请检查数据库 StatefulSet 状态: kubectl -n links-ns get pod links-mysql-0"
