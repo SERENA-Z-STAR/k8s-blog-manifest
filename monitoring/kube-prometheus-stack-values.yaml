@@ -60,6 +60,9 @@ alertmanager:
       group_interval: 5m
       repeat_interval: 12h
       receiver: webhook
+      routes:
+        - matchers: ['alertname = "Watchdog"']
+          receiver: webhook
     receivers:
       - name: webhook
         webhook_configs:
