@@ -82,7 +82,8 @@ grafana:
     enabled: true
     storageClassName: local-path
     size: 2Gi
-  adminPassword: "Grafana@2026"
+  # 口令不落仓库：用 --set grafana.adminPassword=... 注入
+  adminPassword: ""
   grafana.ini:
     auth.anonymous:
       enabled: false

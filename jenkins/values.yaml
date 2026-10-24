@@ -35,7 +35,8 @@ controller:
                       scope: GLOBAL
                       id: harbor
                       username: admin
-                      password: "Harbor12345"
+                      # 密码不落仓库：由 JCasC 从环境变量 / K8s Secret 注入
+                      password: ""
                       description: "Harbor 私有仓库"
 
 # 持久化：local-path 存储
