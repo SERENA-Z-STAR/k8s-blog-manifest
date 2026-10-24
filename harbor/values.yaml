@@ -18,7 +18,8 @@ expose:
 
 externalURL: https://harbor.k8s.local:30443
 
-harborAdminPassword: "Harbor12345"
+# 管理员口令不落仓库：用 -f secrets.local.yaml 或 --set harborAdminPassword=... 注入
+harborAdminPassword: ""
 
 # 让门户提供 CA 证书下载链接（配合我们自签的 CA）
 caSecretName: "harbor-ca"
@@ -50,7 +51,8 @@ persistence:
 
 database:
   internal:
-    password: "harbor_db_pass"
+    # 密码不落仓库：部署时用 --set database.internal.password=... 或 K8s Secret 注入
+    password: ""
     resources:
       requests:
         memory: 256Mi

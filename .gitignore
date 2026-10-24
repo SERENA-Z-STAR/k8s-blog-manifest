@@ -1,5 +1,8 @@
 # ===== 敏感文件（绝不提交）=====
 *.key
+# 本地注入的口令：helm -f secrets.local.yaml
+secrets.local.yaml
+*.local.yaml
 
 # ===== 业务代码（独立仓库 k8s-blog-web）=====
 links-web/
